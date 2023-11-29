@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <!-- Erstellt von Lukas Bröning im Jahr 2023 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Active Learning Tool</title>
+
+    <!-- JQUERY-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" type="text/css" href="../python3-static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed&family=Squada+One&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Web-Head -->
+    <div>
+        <!-- Back Button -->
+        <div style="display: flex; justify-content: center;">
+            <a href="/" style="color: grey;">zurueck zum watchOS-Tool</a>
+        </div>
+
+        <!-- Ueberschrift -->
+        <h1 style="text-align: center;">Active Learning Tool</h1></br></br>
+    </div>
+
+    <!-- Toggle Switch -->
+    <div class="toggle-switch" style="margin-top: -30px;">
+        <a class="switch active" id="mode1" href="/python3" style="text-decoration: none;" data-page="index">ML-Training</a>
+        <a class="switch" id="mode2" href="/python3/activeml" style="text-decoration: none;">Active Learning</a>
+    </div>
+
+    <!-- ML-Training -->
+    <div class="column-container mode1">
+
+        <!-- Dateiauswahl -->
+        <div class="column">
+            <b>Wähle CSV-Datei: </b></br>
+            <form id="file_form" action="/python3/handle_data" method="POST">
+                {% for filename in csv_filenames %}
+                <input type="radio" name="selected_file" value="{{ filename }}" {% if filename==selected_file %} checked
+                    {% endif %} onclick="document.getElementById('file_form').submit();">
+                {{ filename }}</br>
+                {% endfor %}
+            </form>
+        </div>
+
+        <!-- Hz und Window Size Auswahl -->
+        <div class="column">
+            <b>Abtastfrequenz (Hz): </b></b>
+            <form action="/python3" method="POST">
+                <input type="number" name="hertz" id="hertz" value="20" onkeydown="return (event.keyCode !== 13)">
+                <!--readonly-->
+            </form></br>
+            <b>Window Size (Zeilen): </b></br>
+            <form action="/python3" method="POST">
+                <input type="number" name="window_size" id="window_size" value="220"
+                    onkeydown="return (event.keyCode !== 13)">
+            </form>
+        </div>
+
+        <!-- Feature Domäne Auswahl -->
+        <div class="column">
+            <b>Feature Domäne: </b></br>
+            <form action="/python3" method="POST">
+                {% for domain, checked in domain_values %}
+                <input type="radio" name="selected_domain" value="{{ domain }}" {% if checked %} checked {% endif %}>
+                {{ domain }}</br>
+                {% endfor %}
+            </form></br>
+            <!-- Feature Selektion Auswahl -->
+            <form action="/python3" method="POST">
+                <input type="checkbox" name="feature_selection" value="0">
+                Feature Selektion (KEIN AL)
+            </form>
+        </div>
+
+        <!-- Algorithmen Auswahl -->
+        <div class="column">
+            <b>Algorithmen:</b></br>
+            <form action="/python3" method="POST">
+                {% for algorithm in algorithms %}
+                <input type="checkbox" name="algorithm" value="{{ algorithm }}">
+                {{ algorithm }}</br>
+                {% endfor %}
+            </form>
+        </div>
+
+        <!-- Label Auswahl -->
+        <div id="labels" class="column">
+            <b>Labels: </b></br>
+            <form action="/python3" method="POST">
+                {% for label in unique_labels %}
+                <input type="checkbox" name="label" value="{{ label }}">
+                {{ label }}</br>
+                {% endfor %}
+            </form>
+        </div>
+
+        <!-- Train-Test-Split Auswahl -->
+        <div class="column">
+            <form action="/python3" method="POST">
+                <table id="user-table">
+                    <thead>
+                        <tr>
+                            <th>Nutzer</th>
+                            <th>Train</th>
+                            {% if "None" not in unique_users %}
+                            <th>Test</th>
+                            {% endif %}
+                            <th>Verfügbare Labels</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_idx in range(0, unique_users|count) %}
+                        <tr>
+                            <td style="vertical-align: top;">{{ unique_users[user_idx] }}</td>
+                            {% if unique_users[user_idx] == "None" %}
+                            <td style="vertical-align: top;"><input type="checkbox"
+                                    name="train-checkbox-{{ unique_users[user_idx] }}" class="train-checkbox"
+                                    data-user="{{ unique_users[user_idx] }}"></td>
+                            {% else %}
+                            <td style="vertical-align: top;"><input type="checkbox"
+                                    name="train-checkbox-{{ unique_users[user_idx] }}" class="train-checkbox"
+                                    data-user="{{ unique_users[user_idx] }}"></td>
+                            <td style="vertical-align: top;"><input type="checkbox"
+                                    name="test-checkbox-{{ unique_users[user_idx] }}" class="test-checkbox"
+                                    data-user="{{ unique_users[user_idx] }}"></td>
+                            {% endif %}
+                            <td class="labels-verfuegbar" style="border-radius: 5px; border: 1px solid #d8d8d8;">
+                                {% for label in unique_labels_by_user[user_idx] %}
+                                {{ label }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+            <div>
+                <!-- Train-Test-Split in Prozent -->
+                <p id="train-test-split">Train: 0%, Test: 0%</p>
+                <!-- Datensicherung Auswahl -->
+                <form action="/python3" method="POST">
+                    <input type="checkbox" name="save_data" value="0">
+                    Speichere Train-Test-Daten (FÜR AL!)
+                </form>
+            </div>
+        </div>
+
+        <!-- Platzhalter -->
+        <div class="column">
+
+        </div>
+
+        <!-- Start-Button -->
+        <div class="column" style="text-align:center;">
+            <button onclick="execute_pre_feat()">Starte Modelltraining</button>
+        </div>
+
+        <!-- Ergebnisausgabe -->
+        <div id="message-container"></div>
+    </div>
+
+    <hr>
+
+    <!-- Spinner -->
+    <div class="spinner" id="spinner-container" style="display:none;">
+    </div>
+
+    <!-- Verfuegbare Labels verwalten für JS-->
+    <!-- <div style="display: none;" id="unique_labels" data-unique-labels="{{ unique_labels }}"></div>-->
+
+    <!-- JavaScript -->
+    <script type="text/javascript" src="../python3-static/script.js"></script>
+    <script type="text/javascript" src="../python3-static/index-script.js"></script>
+
+</body>
+
+</html>

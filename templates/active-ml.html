@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <!-- Erstellt von Lukas Bröning im Jahr 2023 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Active Learning Tool</title>
+
+    <!-- JQUERY-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" type="text/css" href="../python3-static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed&family=Squada+One&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Web-Head -->
+    <div>
+        <!-- Back Button -->
+        <div style="display: flex; justify-content: center;">
+            <a href="/" style="color: grey;">zurueck zum watchOS-Tool</a>
+        </div>
+
+        <!-- Ueberschrift -->
+        <h1 style="text-align: center;">Active Learning Tool</h1></br></br>
+    </div>
+
+    <!-- Toggle Switch -->
+    <div class="toggle-switch" style="margin-top: -30px;">
+        <a class="switch" id="mode1" href="/python3" style="text-decoration: none;">ML-Training</a>
+        <a class="switch active" id="mode2" href="/python3/activeml" style="text-decoration: none;" data-page="active-ml">Active
+            Learning</a>
+    </div>
+
+    <!-- Active Learning -->
+    <div class="column-container mode1">
+
+        <!-- Modellauswahl -->
+        <div class="column">
+            <b>Wähle ML-Modell: </b></br>
+            <form id="ml_form" action="/python3/handle_data" method="POST">
+                {% for model in model_filenames %}
+                <input type="radio" name="selected_model" value="{{ model }}" {% if model==selected_model %} checked {%
+                    endif %} onclick="document.getElementById('ml_form').submit();">
+                {{ model }}</br>
+                {% endfor %}
+            </form>
+        </div>
+
+        <!-- Modellinformationen -->
+        <div class="column">
+            <b>ML-Modell Informationen:</b></br>
+            <b>• Modellname – </b> {{ model }}</br>
+            <b>• Klassen – </b> {% for label in labels %}
+            {{ label }},
+            {% endfor %}</br>
+            <b>• Genauigkeit – </b> {{ score }} %</br>
+            <b>• Feature Domäne – </b> {{ domain }}</br>
+            <b>• Window Size – </b> {{ window_size }}</br>
+            <b>• Train-Test-Daten – </b> {{ data_saved }}</br></br>
+
+            <!-- Modell löschen -->
+            {% if selected_model %}
+            <form id="delete_model" action="/python3/delete_model" method="POST" style="display: inline;">
+                <input type="hidden" name="delete_model" value="{{ selected_model }}">
+                <button id="delete_button" class="delete-button disable" type="button"
+                    onclick="confirmDelete('{{ selected_model }}')">Modell löschen</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- AL-Konfigurationen -->
+        <div class="column">
+            <b>Active Learning Konfigurationen: </b></br></br>
+            <b>Zielgenauigkeit: </b></br>
+            <form action="/python3/activeml" method="POST">
+                <input type="number" name="accuracy_threshold" id="accuracy_threshold" value="0.95" min="0.01" max="1.0"
+                    step="0.01" onkeydown="return (event.keyCode !== 13)">
+            </form></br>
+            <b>Max. Iterationen: </b></br>
+            <form action="/python3/activeml" method="POST">
+                <input type="number" name="max_iterations" id="max_iterations" value="29" min="1" max="600" step="1"
+                    onkeydown="return (event.keyCode !== 13)">
+            </form></br>
+            <b>Unsicherheits-Schwellenwert: </b></br>
+            <form action="/python3/activeml" method="POST">
+                <input type="number" name="uncertainty_threshold" id="uncertainty_threshold" value="0.20" min="0.01"
+                    step="0.01" max="0.99" onkeydown="return (event.keyCode !== 13)">
+            </form>
+        </div>
+
+        <!-- Query Strategie -->
+        <div class="column">
+            <b>Query Strategie: </b></br>
+            <form action="/python3/activeml" method="POST">
+                {% for strategy, checked in strategies %}
+                <input type="radio" name="selected_strategy" value="{{ strategy }}" {% if checked %} checked {% endif %}>
+                {{ strategy }}</br>
+                {% endfor %}
+            </form></br>
+        </div>
+
+        <!-- User ID (+ Test Modus)-->
+        <div class="column">
+            <b>Benutzer-ID: </b></br>
+            <form action="/python3/activeml" method="POST">
+                <input type="number" name="user_id" id="user_id" value="2" min="1" step="1" max="100"
+                    onkeydown="return (event.keyCode !== 13)" style="width: 65px;">
+                <label style="display: inline;">
+                    <input type="checkbox" name="test_mode" id="test_mode" value="0">
+                    <span style="color: gray; font-size: 0.9rem;">Simulation</span>
+                </label>
+            </form>
+        </div>
+
+        <!-- Start-Button -->
+        <div class="column">
+            <b>Start: </b></br>
+            <button id="execution" class="disable" onclick="execute_al_learning()">Starte Active Learning</button>
+        </div>
+
+        <!-- Statusanzeige für AL-Verfahren -->
+        <h2>Status:</h2>
+        <div style="text-align: center;">
+            <div id="status" style="font-size: 18px;">Vorbereitung</div></br>
+            <div id="error" style="color: orange;"></div></br>
+            <div class="column">
+                <p>Interation:</p><b>
+                    <p id="iteration"></p>
+                </b>
+            </div>
+            <div class="column">
+                <p>Modellgenauigkeit:</p><b>
+                    <p id="accuracy"></p>
+                </b>
+            </div>
+            <div class="column">
+                <p>Nützlichkeitsmetrik:</p><b>
+                    <p id="uncertainty"></p>
+                </b>
+            </div>
+
+            <!-- Label-Buttons -->
+            <form id="label-form">
+                <input type="text" name="label_text" onkeydown="return (event.keyCode !== 13)" style="display: none;">
+            </form>
+            {% for label in labels %}
+            <button type="button" class="custom-button" onclick="setLabel('{{ label }}')"
+                style="display: none; margin-bottom: 50px;">{{
+                label }}</button>
+            {% endfor %}
+
+            <!-- Abbruch-Button -->
+            </br>
+            <button id="save" type="button" class="delete-button" onclick="setState('speichern')"
+                style="display: none;">speichern & beenden</button>
+            <span id="save-text" style="display: none;">Abbruch - Modell wird gespeichert!</span>
+        </div>
+
+    </div>
+
+    <hr>
+
+    <!-- Ergebnisausgabe -->
+    <div id="message-container">
+        <!-- Flash messages will be displayed here -->
+    </div>
+
+
+    <!-- JavaScript -->
+    <script type="text/javascript" src="../python3-static/script.js"></script>
+    <script type="text/javascript" src="../python3-static/active-ml.js"></script>
+    <script>
+        /* Das vom Benutzer bereitgestellte Label auslesen */
+        function setLabel(labelName) {
+            var labelField = document.getElementsByName('label_text')[0];
+            labelField.value = labelName;
+            submitLabel();
+        }
+
+        /* Das vom Benutzer bereitgestellte Label an das AL-Verfahren weiterleiten */
+        function submitLabel() {
+            var xhr = new XMLHttpRequest();
+            var formData = new FormData(document.getElementById('label-form'));
+            xhr.open('POST', '/python3/submit_label', true);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    // Erfolg
+                } else {
+                    // Error
+                }
+            };
+            xhr.send(formData);
+        }
+    </script>
+
+</body>
+
+</html>
